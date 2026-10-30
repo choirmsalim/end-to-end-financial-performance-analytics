@@ -1,0 +1,121 @@
+====================================================================================================
+                   LAPORAN PROYEK ANALITIK DATA KEUANGAN
+         	   Analytic Data Mart SQL & Finance KPI 
+====================================================================================================
+Perusahaan     : H+
+Nama Database  : FinancialAnalytics.db
+Model Data     : Star Schema (1 Tabel Fakta, 3 Tabel Dimensi)
+Engine         : MySQL / local_data
+Penulis        : Finance Analytic Project
+Status         : SELESAI 
+====================================================================================================
+
+----------------------------------------------------------------------------------------------------
+1. STRUKTUR DATA MART & RINGKASAN AUDIT
+----------------------------------------------------------------------------------------------------
+[Deskripsi]
+Skema bintang (star schema) dirancang untuk memisahkan karakteristik entitas ke dalam tabel dimensi 
+khusus sambil mengonsolidasikan metrik transaksi ke dalam satu tabel fakta.
+
+Inventaris Tabel & Jumlah Baris Data:
+  - dim_product                   : 6 baris data unik (Paseo, VTT, Amarilla, Velo, Montana, dan Carretera)
+  - dim_geography                 : 5 baris data unik (United States, Canada, France, Germany, dan Mexico)
+  - dim_segment                   : 5 baris data unik (Enterprise, Government, Midmarket, Small Business, dan Channel Partners)
+  - fact_financial_transactions   : 700 baris transaksi terpetakan
+  - vw_financial_kpi_summary      : 700 baris data gabungan (Siap untuk Power BI)
+
+Pemeriksaan Pemetaan Kunci Relasional:
+  - Foreign Key (product_id)      : Tervalidasi terhadap dim_product.product_id
+  - Foreign Key (geography_id)    : Tervalidasi terhadap dim_geography.geography_id
+  - Foreign Key (segment_id)      : Tervalidasi terhadap dim_segment.segment_id
+
+
+----------------------------------------------------------------------------------------------------
+2. HASIL KUERI KPI & WAWASAN EKSEKUTIF
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+[KPI 1] Profit Margin Ratio berdasarkan Segmen dan Negara
+----------------------------------------------------------------------------------------------------
+Logika SQL:
+  ROUND((SUM(profit) / SUM(sales)) * 100, 2) AS Profit_Margin_Pct
+
+Matriks Sampel Hasil (5 Performa Tertinggi):
+----------------------------------------------------------------------------------------------------
+Segment             Country          Total_Sales ($)    Total_Profit ($)    Profit_Margin_Pct (%)
+----------------------------------------------------------------------------------------------------
+Enterprise          France              2,240,120.00          412,050.00                    18.39
+Government          Germany             3,892,100.50          682,400.00                    17.53
+Midmarket           Canada              1,450,230.00          240,100.00                    16.56
+Small Business      United States       4,120,000.00          610,000.00                    14.81
+Channel Partners    Mexico              1,820,400.00          220,150.00                    12.09
+----------------------------------------------------------------------------------------------------
+
+Komentar Eksekutif:
+  1. Pendorong Margin Tertinggi: Segmen Enterprise di Prancis menghasilkan rasio margin laba 
+     tertinggi sebesar 18.39%, menunjukkan pengungkit harga (pricing leverage) yang kuat dan biaya overhead operasional yang lebih rendah.
+  2. Kontribusi Pendapatan vs. Profitabilitas: Meskipun penjualan Government di Jerman menghasilkan 
+     pendapatan absolut yang lebih tinggi ($3.89M), rasio marginnya (17.53%) berada sedikit di bawah Enterprise 
+     Prancis, menyoroti dinamika struktur biaya yang berbeda di setiap segmen bisnis.
+
+
+----------------------------------------------------------------------------------------------------
+[KPI 2] COGS to Sales Ratio (Efisiensi Produksi & Manufaktur)
+----------------------------------------------------------------------------------------------------
+Logika SQL:
+  ROUND((SUM(cogs) / SUM(sales)) * 100, 2) AS COGS_to_Sales_Ratio_Pct
+
+Matriks Hasil (Peringkat Performa Produk):
+----------------------------------------------------------------------------------------------------
+Product             Total_Sales ($)      Total_COGS ($)      COGS_to_Sales_Ratio_Pct (%)
+----------------------------------------------------------------------------------------------------
+Paseo                 33,011,654.00       28,213,700.00                            85.47
+VTT                   20,511,920.00       17,800,100.00                            86.78
+Amarilla              17,747,120.00       15,610,000.00                            87.96
+Velo                  18,250,100.00       16,120,400.00                            88.33
+Montana               15,390,800.00       13,700,200.00                            89.02
+Carretera             13,815,300.00       12,400,000.00                            89.76
+----------------------------------------------------------------------------------------------------
+
+Komentar Eksekutif:
+  1. Produk Efisiensi Tinggi: 'Paseo' menyerap persentase pendapatan terendah untuk biaya 
+     produksi (85.47%), menjadikannya lini produk paling efisien secara biaya.
+  2. Peluang Penghematan Biaya: 'Carretera' menunjukkan rasio COGS sebesar 89.76%, menyerap hampir 90% 
+     dari pendapatan penjualan. Strategi optimasi biaya atau penyesuaian harga harus ditujukan pada produk ini.
+
+
+----------------------------------------------------------------------------------------------------
+[KPI 3] Pertumbuhan Penjualan Year-over-Year (YoY) (2013 vs 2014)
+----------------------------------------------------------------------------------------------------
+Logika SQL:
+  ROUND(((total_sales - prev_year_sales) / prev_year_sales) * 100, 2) AS YoY_Growth_Pct
+  Menggunakan Window Function: LAG(total_sales) OVER (ORDER BY year)
+
+Matriks Hasil:
+----------------------------------------------------------------------------------------------------
+Year     Current_Year_Sales ($)     Previous_Year_Sales ($)     YoY_Growth_Pct (%)
+----------------------------------------------------------------------------------------------------
+2013              26,415,200.00                        N/A                    N/A
+2014              92,315,120.50              26,415,200.00                +249.48%
+----------------------------------------------------------------------------------------------------
+
+Komentar Eksekutif:
+  1. Pertumbuhan Signifikan: Pendapatan tahunan melonjak sebesar +249.48% dari tahun 2013 ke 2014.
+  2. Konteks Operasional: Persentase kenaikan yang tinggi ini mencerminkan ekspansi pasar pada tahun 2014 
+     sekaligus pencatatan operasional parsial pada tahun dasar (2013).
+
+
+----------------------------------------------------------------------------------------------------
+3. LANGKAH SELANJUTNYA UNTUK INTEGRASI POWER BI
+----------------------------------------------------------------------------------------------------
+1. Penyiapan Koneksi:
+   - Hubungkan Power BI Desktop secara langsung ke SQLite menggunakan ODBC driver atau impor `vw_financial_kpi_summary`.
+2. Penyesuaian DAX Measure:
+   - Validasi ukuran DAX di Power BI terhadap hasil kueri SQL di atas untuk memastikan 
+     akurasi rekonsiliasi data.
+3. Halaman Dashboard:
+   - Halaman 1: Ringkasan Keuangan Eksekutif (Sales, Profit, Profit Margin %) dan Analisis Produk & Biaya (Rincian COGS Ratio).
+
+====================================================================================================
+                                    AKHIR DARI LAPORAN CATATAN
+====================================================================================================
