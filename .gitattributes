@@ -1,1 +1,3 @@
-   *.sql linguist-detectable=true
+*.sql linguist-detectable=true
+*.dax linguist-language=DAX
+*.txt linguist-vendored
