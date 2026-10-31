@@ -1,0 +1,47 @@
+// ============================================================
+// H+ Financial Performance Dashboard - DAX
+// Model: tabel fakta 'H+', tabel kalender 'TableDate',
+//        tabel pendukung 'Waterfall Chart' (Item, Urutan)
+// ============================================================
+
+// ---------- CALCULATED TABLE ----------
+TableDate =
+ADDCOLUMNS (
+    CALENDAR ( MIN ( 'H+'[Date] ), MAX ( 'H+'[Date] ) ),
+    "Year", YEAR ( [Date] )
+)
+
+// ---------- CALCULATED COLUMN (tabel 'H+') ----------
+Month Short =
+FORMAT ( 'H+'[Month Number], "mmm", "en-US" )
+
+// ---------- MEASURES (tabel 'H+') ----------
+// Profit Margin tertimbang: total Profit / total Sales
+%Profit =
+SUM ( 'H+'[Profit] ) / SUM ( 'H+'[Sales] )
+
+// Nilai batang waterfall: Gross Sales (+), Discounts (-), COGS (-)
+Waterfall Value =
+SWITCH (
+    SELECTEDVALUE ( 'Waterfall Chart'[Item] ),
+    "Gross Sales", SUM ( 'H+'[Gross Sales] ),
+    "Discounts",   -SUM ( 'H+'[Discounts] ),
+    "COGS",        -SUM ( 'H+'[COGS] )
+)
+
+// ---------- MEASURES (tabel 'Waterfall Chart') ----------
+// Proporsi komponen terhadap Gross Sales
+% of Gross Sales =
+DIVIDE ( ABS ( [Waterfall Value] ), SUM ( 'H+'[Gross Sales] ) )
+
+// Subtitle dinamis waterfall
+Subtitle Waterfall Chart =
+"Cost of goods sold absorbs "
+    & FORMAT ( DIVIDE ( SUM ( 'H+'[COGS] ), SUM ( 'H+'[Gross Sales] ) ), "0.0%", "en-US" )
+    & " of gross revenue"
+
+// Subtitle dinamis grafik segmen
+Subtitle Row Chart =
+VAR _EnterpriseProfit = CALCULATE ( [%Profit], 'H+'[Segment] = "Enterprise" )
+RETURN
+    "Enterprise records the lowest average profit at " & FORMAT ( _EnterpriseProfit, "0.0%" )
