@@ -56,7 +56,7 @@ Analisis end-to-end atas 700 transaksi penjualan perusahaan fiktif **H+** (Sep 2
 | Analisis & modeling | Python (Pandas, NumPy, Matplotlib, Seaborn, Scikit-Learn) |
 | Database & KPI | SQL (MySQL, star schema, window function) |
 | Business insight | Microsoft Excel (PivotTable, Scenario Manager, Data Table) |
-| Visualisasi | Power BI Desktop |
+| Visualisasi | Power BI Desktop (Power Query, DAX measures) |
 | Version control | Git & GitHub |
 
 ---
@@ -67,9 +67,59 @@ Analisis end-to-end atas 700 transaksi penjualan perusahaan fiktif **H+** (Sep 2
 2. **EDA & modeling (`python/eda_and_modeling.py`)**: 5 visualisasi (barplot, heatmap, boxplot, matriks korelasi, scatterplot) dan regresi linear untuk prediksi Profit (split 80/20), lalu mengekspor `processed_financials.csv`.
 3. **SQL (`sql/financial_analysis_queries.sql`)**: membangun star schema (1 tabel fakta + 3 dimensi), 3 kueri KPI, serta view `vw_financial_kpi_summary` untuk Power BI.
 4. **Excel (`excel/`)**: P&L pivot per negara × produk, Scenario Manager, dan Data Table dua variabel (perubahan COGS × pemotongan diskon).
-5. **Power BI (`powerbi/`)**: dashboard interaktif dengan KPI, tren bulanan, waterfall Gross Sales → Profit, dan profit per segmen.
+5. **Power BI (`powerbi/`)**: dashboard interaktif dengan KPI, tren bulanan, waterfall Gross Sales → Profit, dan profit per segmen, didukung 5 measure DAX (lihat *Data Model & DAX* di bawah).
 6. **Report & presentasi (`reports/`)**: laporan end-to-end dan deck ringkasan untuk stakeholder.
 
+---
+### Detail Power BI: Data Model & DAX
+ 
+**Data model**
+ 
+| Tabel | Sumber | Fungsi |
+|---|---|---|
+| `H+` | Power Query dari `financials_data.xlsx` (Sheet1) | Tabel fakta: 700 transaksi |
+| `TableDate` | DAX: `CALENDAR(MIN(Date), MAX(Date))` + kolom `Year` | Tabel kalender |
+| `Waterfall Chart` | Enter Data (kolom `Item`, `Urutan`) | *Disconnected table* agar satu waterfall memuat Gross Sales, Discounts, dan COGS lewat satu measure |
+ 
+**Power Query:** menetapkan tipe data (teks, angka, tanggal), mempromosikan header, dan merapikan nama kolom ` Sales` (ada spasi di depan) menjadi `Sales`.
+ 
+**DAX measures**
+ 
+| Measure | Fungsi | Dipakai di visual |
+|---|---|---|
+| `%Profit` | Profit Margin tertimbang: total Profit dibagi total Sales | KPI *All Time Profit (%)* dan *Average Profit by Segment* |
+| `Waterfall Value` | Memilih nilai sesuai `Item` dengan `SWITCH` (Gross Sales positif, Discounts dan COGS negatif) | Waterfall *From Gross Sales to Profit* |
+| `% of Gross Sales` | Proporsi tiap komponen terhadap Gross Sales dengan `DIVIDE` | Label waterfall |
+| `Subtitle Waterfall Chart` | Teks dinamis, mis. *"Cost of goods sold absorbs 79.6% of gross revenue"* | Subtitle waterfall |
+| `Subtitle Row Chart` | Teks dinamis dengan `VAR` dan `CALCULATE`: margin segmen Enterprise (-3.1%) | Subtitle grafik segmen |
+ 
+Kolom hitung tambahan: `Month Short` (nama bulan singkat) pada tabel `H+`.
+ 
+```dax
+-- Profit Margin tertimbang (bukan rata-rata per baris)
+%Profit =
+SUM ( 'H+'[Profit] ) / SUM ( 'H+'[Sales] )
+ 
+-- Satu measure untuk seluruh batang waterfall
+Waterfall Value =
+SWITCH (
+    SELECTEDVALUE ( 'Waterfall Chart'[Item] ),
+    "Gross Sales", SUM ( 'H+'[Gross Sales] ),
+    "Discounts",   -SUM ( 'H+'[Discounts] ),
+    "COGS",        -SUM ( 'H+'[COGS] )
+)
+ 
+-- Subtitle dinamis dengan variabel
+Subtitle Row Chart =
+VAR _EnterpriseProfit = CALCULATE ( [%Profit], 'H+'[Segment] = "Enterprise" )
+RETURN
+    "Enterprise records the lowest average profit at " & FORMAT ( _EnterpriseProfit, "0.0%" )
+```
+ 
+Kode lengkap ada di [`powerbi/dax_measures.dax`](powerbi/dax_measures.dax).
+ 
+**Konsep DAX yang digunakan:** agregasi (`SUM`), logika kondisional (`SWITCH`), context transition (`CALCULATE`), variabel (`VAR`/`RETURN`), pembagian aman (`DIVIDE`), disconnected table dengan `SELECTEDVALUE`, teks dinamis (`FORMAT`), dan calculated table (`CALENDAR`).
+ 
 ---
 
 ## 5. Hasil & Insight
@@ -138,7 +188,7 @@ hplus-financial-analytics/
 │   └── executive-financial-whatif-analysis.xlsx
 ├── powerbi/
 │   └── H+_Sales_Dashboard.pbix
-├── images/               # grafik EDA & preview dashboard
+│   └── dax_measures.dax
 ├── reports/
 │   ├── end-to-end-project-report.pdf
 │   └── presentation.pptx
@@ -197,7 +247,7 @@ sqlite3 FinancialAnalytics.db < sql/financial_analysis_queries.sql
 ### d. Excel dan Power BI
 
 - **Excel:** buka `excel/executive-financial-whatif-analysis.xlsx`. Ubah sel *Perubahan COGS* dan *Pemotongan Discount* pada sheet `DataTable_WhatIfAnalysis`, atau lihat sheet `ScenarioSummary`.
-- **Power BI:** buka `powerbi/H+_Sales_Dashboard.pbix`, lalu *Refresh* setelah mengarahkan sumber data ke `processed_financials.csv` atau view `vw_financial_kpi_summary`.
-
+- **Power BI:** buka `powerbi/financial-performance-sales-dashboard.pbix`. Sumber data file ini adalah `financials_data.xlsx` (Sheet1). Jika muncul error path, buka **Home → Transform data → Data source settings → Change Source**, arahkan ke lokasi `data/financials_data.xlsx` di komputer Anda, lalu klik **Refresh**. Measure DAX dapat dilihat di panel *Data* atau di `powerbi/dax_measures.dax`.
+---
 
 > Dataset bersifat fiktif dan digunakan untuk tujuan pembelajaran dan portofolio.
